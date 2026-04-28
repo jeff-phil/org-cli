@@ -7,10 +7,10 @@ org-cli is an Emacs package that provides a CLI tool for programmatically manipu
 Agents can use included SKILL, and for Pi Coding Agent included extension, to operate org-cli, by saying things like:
 
 
-"Show me my current todos in project.org in kanban table."
-"Add a todo to update CI pipeline for new foo function, due 5/4 at 10am"
-"Change add tests for bar function to done."
-"Add a note to Glaze the Subroutine task to look at the Flux capacitor"
++ /~"Show me my current todos in project.org in kanban table."~/
++ /~"Add a todo to update CI pipeline for new foo function, due 5/4 at 10am"~/
++ /~"Change add tests for bar function to done."~/
++ /~"Add a note to Glaze the Subroutine task to look at the Flux capacitor"~/
 
 It can be invoked from the command line using included org-cli.sh script - see usage below.
 
