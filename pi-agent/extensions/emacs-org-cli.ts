@@ -27,7 +27,11 @@
  */
 
 import { StringEnum } from "@mariozechner/pi-ai";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import type {
+    ExtensionAPI,
+    ExtensionContext,
+} from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import * as path from "node:path";
 
@@ -38,7 +42,7 @@ import * as path from "node:path";
 /**
  * Default path to the directory containing org-cli.el and org-cli.sh.
  *
- * Resolved relative to PI_CODING_AGENT_DIR, which defaults to /pi-agent.
+ * Resolved relative to PI_CODING_AGENT_DIR or ~/.pi/agent.
  * The skill's scripts directory contains both org-cli.el and org-cli.sh:
  *   $PI_CODING_AGENT_DIR/skills/emacs-org-cli/scripts/
  *
@@ -46,10 +50,12 @@ import * as path from "node:path";
  * Override the Emacs binary via EMACS environment variable.
  * Load custom Emacs init via ORG_CLI_INIT_EL environment variable.
  */
-const DEFAULT_ORG_CLI_DIR =
-    process.env.PI_CODING_AGENT_DIR
-        ? path.join(process.env.PI_CODING_AGENT_DIR, "skills", "emacs-org-cli", "scripts")
-        : "/pi-agent/skills/emacs-org-cli/scripts";
+const DEFAULT_ORG_CLI_DIR = path.join(
+    getAgentDir(),
+    "skills",
+    "emacs-org-cli",
+    "scripts",
+);
 
 /** Resolve the directory containing org-cli.sh and org-cli.el. */
 function resolveOrgCliDir(): string {
@@ -76,7 +82,7 @@ async function runOrgCli(
     const scriptPath = path.join(dir, "org-cli.sh");
 
     const env: Record<string, string> = {
-        ...process.env as Record<string, string>,
+        ...(process.env as Record<string, string>),
         ORG_CLI_DIR: dir,
     };
 
@@ -167,7 +173,8 @@ const EditBodyParams = Type.Object({
     new_body: Type.String({ description: "Replacement text" }),
     replace_all: Type.Optional(
         Type.String({
-            description: '"true" to replace all occurrences, "false" (default) for first only',
+            description:
+                '"true" to replace all occurrences, "false" (default) for first only',
         }),
     ),
 });
@@ -218,11 +225,17 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
             "Read the hierarchical outline of an Org file. " +
             "Returns JSON with title, level, and children for each heading. " +
             "Use this to understand file structure before reading specific headlines.",
-        promptSnippet: "org-read-outline(file) — get structured outline of an Org file",
+        promptSnippet:
+            "org-read-outline(file) — get structured outline of an Org file",
         parameters: ReadOutlineParams,
 
         async execute(_id, params, _signal, _onUpdate, ctx) {
-            const output = await runOrgCli(pi, "read-outline", [params.file], ctx);
+            const output = await runOrgCli(
+                pi,
+                "read-outline",
+                [params.file],
+                ctx,
+            );
             return {
                 content: [{ type: "text", text: output }],
             };
@@ -242,10 +255,12 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
         parameters: ReadHeadlineParams,
 
         async execute(_id, params, _signal, _onUpdate, ctx) {
-            const output = await runOrgCli(pi, "read-headline", [
-                params.file,
-                params.headline_path,
-            ], ctx);
+            const output = await runOrgCli(
+                pi,
+                "read-headline",
+                [params.file, params.headline_path],
+                ctx,
+            );
             return {
                 content: [{ type: "text", text: output }],
             };
@@ -259,11 +274,17 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
             "Read an Org headline by its ID property. " +
             "Returns the headline text including todo state, tags, properties, body, " +
             "and all nested subheadings.",
-        promptSnippet: "org-read-by-id(uuid) — read a headline by its Org ID property",
+        promptSnippet:
+            "org-read-by-id(uuid) — read a headline by its Org ID property",
         parameters: ReadByIdParams,
 
         async execute(_id, params, _signal, _onUpdate, ctx) {
-            const output = await runOrgCli(pi, "read-by-id", [params.uuid], ctx);
+            const output = await runOrgCli(
+                pi,
+                "read-by-id",
+                [params.uuid],
+                ctx,
+            );
             return {
                 content: [{ type: "text", text: output }],
             };
@@ -280,7 +301,8 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
             "Returns JSON with sequences (type + keywords) and semantics " +
             "(state, isFinal, sequenceType per keyword). " +
             "Use before updating TODO states to know valid transitions.",
-        promptSnippet: "org-get-todo-config() — list valid TODO keywords and transitions",
+        promptSnippet:
+            "org-get-todo-config() — list valid TODO keywords and transitions",
         parameters: Type.Object({}),
 
         async execute(_id, _params, _signal, _onUpdate, ctx) {
@@ -390,11 +412,12 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
         parameters: RenameHeadlineParams,
 
         async execute(_id, params, _signal, _onUpdate, ctx) {
-            const output = await runOrgCli(pi, "rename-headline", [
-                params.uri,
-                params.current_title,
-                params.new_title,
-            ], ctx);
+            const output = await runOrgCli(
+                pi,
+                "rename-headline",
+                [params.uri, params.current_title, params.new_title],
+                ctx,
+            );
             return {
                 content: [{ type: "text", text: output }],
             };
@@ -457,9 +480,10 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
             "priority, deadline, scheduled, and id for each item. " +
             "Use headline_path to list TODOs under a specific section. " +
             "If headline_path is omitted, lists all TODOs in the file. " +
-            "Use format=\"markdown\" for a readable table, format=\"kanban\" for a board view, " +
-            "or format=\"json\" (default) for structured data.",
-        promptSnippet: "org-list-todos(file, [headline_path], [format]) — list TODO items",
+            'Use format="markdown" for a readable table, format="kanban" for a board view, ' +
+            'or format="json" (default) for structured data.',
+        promptSnippet:
+            "org-list-todos(file, [headline_path], [format]) — list TODO items",
         parameters: Type.Object({
             file: Type.String({ description: "Absolute path to an Org file" }),
             headline_path: Type.Optional(
@@ -511,7 +535,8 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
     // ----- Slash commands -----
 
     pi.registerCommand("org-cli-info", {
-        description: "Show org-cli configuration: settings, allowed files, TODO keywords, and tags",
+        description:
+            "Show org-cli configuration: settings, allowed files, TODO keywords, and tags",
         async handler(_args, ctx) {
             try {
                 const [files, todos, tags] = await Promise.all([
@@ -521,7 +546,8 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
                 ]);
 
                 const t = ctx.ui.theme;
-                const header = (text: string) => t.bold(t.fg("mdHeading", text));
+                const header = (text: string) =>
+                    t.bold(t.fg("mdHeading", text));
                 const label = (text: string) => t.fg("accent", text);
                 const dim = (text: string) => t.fg("dim", text);
 
@@ -541,7 +567,7 @@ export default function emacsOrgCliExtension(pi: ExtensionAPI) {
                         `${label("[Settings]")}\n` +
                         `${dim("org-cli dir:")} ${resolvedDir}${overrideNote}\n` +
                         `${dim("init.el:")} ${initEl}\n` +
-                        `${dim("PI_CODING_AGENT_DIR:")} ${process.env.PI_CODING_AGENT_DIR ?? "(not set)"}\n\n` +
+                        `${dim("PI_CODING_AGENT_DIR:")} ${process.env.PI_CODING_AGENT_DIR ?? "(not set using: " + getAgentDir()}\n\n` +
                         `${label("[Allowed files]")}\n${files}\n\n` +
                         `${label("[TODO config]")}\n${todos}\n\n` +
                         `${label("[Tag config]")}\n${tags}`,
