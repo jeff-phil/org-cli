@@ -1,0 +1,385 @@
+#+TITLE: org-cli
+
+* Overview
+
+org-cli is an Emacs package that provides a CLI tool for programmatically manipulating Org-mode files.  Originally based on the [[https://github.com/laurynas-biveinis/org-mcp/][Org MCP]] tool, but allowing Org files to be updated from cli without having emacs with MCP Lib Server running; which can be tricky in an air gapped Pi Coding Agent container.  Emacs does still need to be installed, but does not need to be active.
+
+Agents can use included SKILL, and for Pi Coding Agent included extension, to operate org-cli, by saying things like:
+
+
+"Show me my current todos in project.org in kanban table."
+"Add a todo to update CI pipeline for new foo function, due 5/4 at 10am"
+"Change add tests for bar function to done."
+"Add a note to Glaze the Subroutine task to look at the Flux capacitor"
+
+It can be invoked from the command line using included org-cli.sh script - see usage below.
+
+Or via Emacs (batch mode):
+
+#+begin_src bash
+emacs --batch -l /path/to/your/init.el -l org-cli.el \
+  --eval '(org-cli)' -- COMMAND [ARGS...]
+#+end_src
+
+* Installation
+
+Grab from Github.
+
+For Pi Coding agent, add pi-agent directory files and directory structure to appropriate ~/.pi/agent directory and /reload pi.
+
+Otherwise, for other systems add the SKILL.md and scripts directory under pi-agent to your agent's locations.
+
+If wanting to use within emacs, and not Load the file directly:
+
+#+begin_src emacs-lisp
+(use-package org-cli
+  :load-path "/path/to/org-cli"))
+#+end_src
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/org-cli")
+(require 'org-cli)
+#+end_src
+
+* Usage
+
+**WARNING:** this will have access to org files, which may be any file depending on  =org-cli-allowed-files= below being in yolo mode (nil). But even then, AI agents make mistakes so make sure you verify and backup important files.
+
+** Configuring allowed files
+
+By default, when =org-cli-allowed-files= is =nil=, all files are allowed (suitable for CLI usage where you specify files explicitly). If you want to restrict access, set it using absolute paths:
+
+#+begin_src emacs-lisp
+(setq org-cli-allowed-files '("/path/to/foo.org" "/path/to/bar.org"))
+#+end_src
+
+** CLI Usage
+
+The primary use case is invoking org-cli from the command line.
+
+*** Using org-cli.sh (recommended)
+
+A standalone shell script wrapper is included that provides a clean CLI
+without needing to remember the Emacs batch invocation syntax:
+
+#+begin_src bash
+org-cli.sh <command> [args...]
+org-cli.sh --help
+#+end_src
+
+FILE arguments accept relative paths — they are resolved to absolute
+automatically:
+
+#+begin_src bash
+# Works with relative paths
+org-cli.sh list-todos notes.org "" kanban
+
+# Same as absolute path
+org-cli.sh list-todos /path/to/notes.org "" kanban
+#+end_src
+
+Environment variables:
+- =ORG_CLI_DIR= — Directory containing org-cli.el (default: script's own directory)
+- =ORG_CLI_INIT_EL= — Path to Emacs init file to load before org-cli.el (default: none). Set this to load custom =org-todo-keywords=, =org-tag-alist=, etc.
+- =EMACS= — Path to emacs binary (default: emacs)
+
+Quick examples:
+
+#+begin_src bash
+# Help
+org-cli.sh --help
+
+# Read a file
+org-cli.sh read-file notes.org
+
+# List TODOs as kanban board
+org-cli.sh list-todos notes.org "" kanban
+
+# Read a specific headline
+org-cli.sh read-headline notes.org "Shopping%20List"
+
+# Read by ID
+org-cli.sh read-by-id 679329de-9af5-4c36-b892-df909a7300c3
+
+# Add a TODO item
+org-cli.sh add-todo "Buy milk" TODO "org-headline:///path/to/notes.org#" shopping
+
+# Update TODO state
+org-cli.sh update-todo-state "org-id://uuid" TODO DONE
+
+# Set a deadline
+org-cli.sh set-planning "org-id://uuid" deadline 2025-05-01
+
+# Edit body (replace entire body)
+org-cli.sh edit-body "org-id://uuid" "" "New body content"
+
+# Read body from stdin
+org-cli.sh edit-body "org-id://uuid" @- "New body content"
+#+end_src
+
+*** Using Emacs batch mode directly
+
+If you prefer to invoke Emacs directly or need to load your own init.el
+for configuration:
+
+#+begin_src bash
+emacs --batch -l /path/to/your/init.el -l org-cli.el \
+  --eval '(org-cli)' -- COMMAND [ARGS...]
+#+end_src
+
+If your =init.el= already loads =org-cli=, you can omit the =-l org-cli.el=:
+
+#+begin_src bash
+emacs --batch -l /path/to/your/init.el \
+  --eval '(org-cli)' -- COMMAND [ARGS...]
+#+end_src
+
+Note: since org-mode is now included with emacs, you don't really need to supply the init.el file and should just work with most current versions.  But should use at least a minimal one to lock down which org files may be edited - see =org-cli-allowed-files= above.
+
+*** Available Commands
+
+**** get-todo-config
+Get TODO keyword configuration.
+
+#+begin_src bash
+org-cli.sh get-todo-config
+#+end_src
+
+Returns JSON object with =sequences= and =semantics= arrays describing the TODO keyword configuration.
+
+**** get-tag-config
+Get tag configuration.
+
+#+begin_src bash
+org-cli.sh get-tag-config
+#+end_src
+
+Returns JSON object with tag-related Org variables as strings.
+
+**** get-allowed-files
+List allowed Org files.
+
+#+begin_src bash
+org-cli.sh get-allowed-files
+#+end_src
+
+**** read-file
+Read complete raw content of an Org file.
+
+#+begin_src bash
+# Using org-cli.sh
+org-cli.sh read-file notes.org
+
+# Using Emacs directly
+emacs --batch -l init.el -l org-cli.el --eval '(org-cli)' -- read-file /path/to/file.org
+#+end_src
+
+**** read-outline
+Read hierarchical outline of an Org file as JSON.
+
+#+begin_src bash
+org-cli.sh read-outline notes.org
+#+end_src
+
+**** read-headline
+Read a specific headline by its path.
+
+#+begin_src bash
+org-cli.sh read-headline notes.org "Parent%20Task/Child%20Task"
+#+end_src
+
+The headline path uses URL encoding for special characters. Slashes in headline titles should be encoded as =%2F=.
+
+**** read-by-id
+Read a headline by its ID property.
+
+#+begin_src bash
+org-cli.sh read-by-id 550e8400-e29b-41d4-a716-446655440000
+#+end_src
+
+**** list-todos
+List all TODO items in a file or under a specific section.
+
+#+begin_src bash
+# List all TODOs in a file (JSON format, default)
+org-cli.sh list-todos notes.org
+
+# List TODOs as a markdown table
+org-cli.sh list-todos notes.org "" markdown
+
+# List TODOs as a kanban board (states as columns)
+org-cli.sh list-todos notes.org "" kanban
+
+# List TODOs under a specific section
+org-cli.sh list-todos notes.org "Project%20Tasks" markdown
+#+end_src
+
+Returns JSON with a =todos= array (each entry: =state=, =title=, =level=, =tags=, =priority=, =deadline=, =scheduled=, =id=), a markdown table when =markdown= format is specified, or a kanban board when =kanban= format is specified. The kanban format places TODO states as columns with items stacked under their state.
+
+**** update-todo-state
+Update the TODO state of a headline.
+
+#+begin_src bash
+org-cli.sh update-todo-state "org-id://550e8400-e29b-41d4-a716-446655440000" "TODO" "IN-PROGRESS"
+#+end_src
+
+Parameters:
+- URI of the headline (org-headline:// or org-id:// format)
+- Current state (must match actual state, empty string for no state)
+- New state (must be valid keyword from org-todo-keywords)
+
+**** add-todo
+Add a new TODO item.
+
+#+begin_src bash
+# Add top-level TODO
+org-cli.sh add-todo "New Task" "TODO" "org-headline:///path/to/file.org#" "work,urgent"
+
+# Add with body text
+org-cli.sh add-todo "New Task" "TODO" "org-headline:///path/to/file.org#" "work" "Body text here"
+
+# Add with body from file (@ prefix reads from file)
+org-cli.sh add-todo "New Task" "TODO" "org-headline:///path/to/file.org#" "work" @/tmp/body.txt
+
+# Add with body from stdin (@- reads from stdin)
+echo "Body text from stdin" | org-cli.sh add-todo "New Task" "TODO" "org-headline:///path/to/file.org#" "work" @-
+
+# Add child TODO under a parent
+org-cli.sh add-todo "Child Task" "TODO" "org-headline:///path/to/file.org#Parent%20Task" "work"
+
+# Add as child of an ID-based parent
+org-cli.sh add-todo "Child Task" "TODO" "org-id://550e8400-e29b-41d4-a716-446655440000" "work"
+
+# Add after a specific sibling
+org-cli.sh add-todo "New Task" "TODO" "org-id://parent-id" "work" "" "org-id://sibling-id"
+#+end_src
+
+Parameters:
+1. Title - headline text
+2. State - TODO keyword (e.g., TODO, DONE)
+3. Parent URI - org-headline:// or org-id:// URI of parent
+4. Tags (optional) - comma-separated list (e.g., "work,urgent")
+5. Body (optional) - body text (use @file to read from file, @- for stdin)
+6. After URI (optional) - org-id:// URI of sibling to insert after
+
+**** rename-headline
+Rename a headline.
+
+#+begin_src bash
+org-cli.sh rename-headline "org-id://550e8400-e29b-41d4-a716-446655440000" "Old Title" "New Title"
+#+end_src
+
+Parameters:
+1. URI of the headline
+2. Current title (must match actual title)
+3. New title
+
+**** edit-body
+Edit body content of a headline using partial string replacement.
+
+#+begin_src bash
+# Replace text
+org-cli.sh edit-body "org-id://550e8400-e29b-41d4-a716-446655440000" "old text" "new text"
+
+# Replace text read from file
+org-cli.sh edit-body "org-id://id" "@/tmp/old.txt" "@/tmp/new.txt"
+
+# Replace all occurrences
+org-cli.sh edit-body "org-id://id" "old text" "new text" true
+#+end_src
+
+Parameters:
+1. URI of the headline
+2. Old body text to find (use @file/@- for file/stdin)
+3. New body text (use @file/@- for file/stdin)
+4. Replace all (optional) - "true" to replace all occurrences
+
+**** help
+Show usage information.
+
+#+begin_src bash
+org-cli.sh --help
+#+end_src
+
+*** URI Formats
+
+URIs are used to reference specific headlines:
+
+**** org-headline:// URIs
+- =org-headline:///path/to/file.org= - reference a file
+- =org-headline:///path/to/file.org#Headline= - reference a top-level headline
+- =org-headline:///path/to/file.org#Parent%20Task/Child%20Task= - reference a nested headline
+
+File path =#= characters must be encoded as =%23=. Headline path uses full URL encoding.
+
+**** org-id:// URIs
+- =org-id://550e8400-e29b-41d4-a716-446655440000= - reference a headline by its ID property
+
+ID-based URIs are stable across headline renames and moves.
+
+*** @-file Convention for Body Text
+
+Arguments starting with =@= are read from files:
+- =@/path/to/file= - read content from the specified file
+- =@-= - read content from stdin
+- Any other argument is used as-is
+
+This is particularly useful for =body= and =old_body= / =new_body= parameters that may contain newlines or special characters.
+
+** Programmatic Usage (Elisp)
+
+You can also use the tool functions directly from Elisp:
+
+#+begin_src emacs-lisp
+(require 'org-cli)
+
+;; Read a file
+(org-cli-read-file "/path/to/file.org")
+
+;; Read outline
+(org-cli-read-outline "/path/to/file.org")
+
+;; Read headline by path
+(org-cli-read-headline "/path/to/file.org" "Parent%20Task/Child")
+
+;; Read headline by ID
+(org-cli-read-by-id "550e8400-e29b-41d4-a716-446655440000")
+
+;; List all TODOs in a file
+(org-cli-list-todos "/path/to/file.org")
+
+;; List TODOs as markdown table
+(org-cli-list-todos "/path/to/file.org" nil "markdown")
+
+;; List TODOs as kanban board
+(org-cli-list-todos "/path/to/file.org" nil "kanban")
+
+;; List TODOs under a specific section
+(org-cli-list-todos "/path/to/file.org" "Project%20Tasks")
+
+;; Add a TODO
+(org-cli-add-todo "New Task" "TODO" '("work") nil
+                        "org-headline:///path/to/file.org#")
+
+;; Update TODO state
+(org-cli-update-todo-state "org-id://uuid" "TODO" "IN-PROGRESS")
+
+;; Rename headline
+(org-cli-rename-headline "org-id://uuid" "Old Title" "New Title")
+
+;; Edit body
+(org-cli-edit-body "org-id://uuid" "old text" "new text" nil)
+
+;; Get configuration
+(org-cli-get-todo-config)
+(org-cli-get-tag-config)
+(org-cli-get-allowed-files)
+#+end_src
+
+* Credits
+
+Based on Org MCP tool: [[https://github.com/laurynas-biveinis/org-mcp/][https://github.com/laurynas-biveinis/org-mcp/]]
+
+* License
+
+This project is licensed under the GNU General Public License v3.0 (GPLv3) - see the LICENSE file for details.

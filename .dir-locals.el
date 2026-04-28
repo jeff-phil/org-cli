@@ -1,0 +1,16 @@
+;;; Directory Local Variables
+;;; For more information see (info "(emacs) Directory Variables")
+
+((emacs-lisp-mode . ((fill-column . 88)
+                     (indent-tabs-mode . nil)
+                     (elisp-lint-indent-specs . ((org-cli--modify-and-save . 3)
+                                                 (org-cli--with-uri-prefix-dispatch . 1)
+                                                 (org-cli--with-org-file . 1)
+                                                 (org-cli-test--assert-error-and-file . 1)
+                                                 (org-cli-test--with-enabled . defun)
+                                                 (org-cli-test--with-config . 1)
+                                                 (org-cli-test--with-temp-org-file . 2)
+                                                 (org-cli-test--with-add-todo-setup . 2)
+                                                 (org-cli-test--with-id-tracking . 2)
+                                                 (org-cli-test--with-id-setup . 2)
+                                                 (org-cli-test--get-tag-config-and-check . defun))))))

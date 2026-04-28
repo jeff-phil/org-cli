@@ -1,0 +1,10 @@
+*.elc
+*~
+*.swp
+/.DS_Store
+org-cli-autoloads.el
+.claude/
+.eask/
+dist/
+/.agent-shell/
+notes.org
